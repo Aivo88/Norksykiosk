@@ -123,8 +123,12 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int kc = event.getKeyCode();
+        boolean digit = (kc >= KeyEvent.KEYCODE_0 && kc <= KeyEvent.KEYCODE_9)
+                || (kc >= KeyEvent.KEYCODE_NUMPAD_0 && kc <= KeyEvent.KEYCODE_NUMPAD_9);
+        boolean enter = (kc == KeyEvent.KEYCODE_ENTER || kc == KeyEvent.KEYCODE_NUMPAD_ENTER);
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (kc == KeyEvent.KEYCODE_ENTER || kc == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+            if (event.getRepeatCount() > 0) return digit || enter;   // ignore key auto-repeat
+            if (enter) {
                 String code = scanBuf.toString();
                 scanBuf.setLength(0);
                 if (code.length() > 0) { sendScanToWeb(code); return true; }
@@ -133,16 +137,15 @@ public class MainActivity extends Activity {
             char ch = 0;
             if (kc >= KeyEvent.KEYCODE_0 && kc <= KeyEvent.KEYCODE_9) {
                 ch = (char) ('0' + (kc - KeyEvent.KEYCODE_0));
+            } else if (kc >= KeyEvent.KEYCODE_NUMPAD_0 && kc <= KeyEvent.KEYCODE_NUMPAD_9) {
+                ch = (char) ('0' + (kc - KeyEvent.KEYCODE_NUMPAD_0));
             } else {
                 int u = event.getUnicodeChar();
-                if (u >= 32) ch = (char) u;
+                if (u >= 32 && u < 127) ch = (char) u;   // printable ASCII only
             }
             if (ch != 0) { scanBuf.append(ch); return true; }
         } else if (event.getAction() == KeyEvent.ACTION_UP) {
-            if (kc == KeyEvent.KEYCODE_ENTER || kc == KeyEvent.KEYCODE_NUMPAD_ENTER
-                    || (kc >= KeyEvent.KEYCODE_0 && kc <= KeyEvent.KEYCODE_9)) {
-                return true;
-            }
+            if (enter || digit) return true;
         }
         return super.dispatchKeyEvent(event);
     }
