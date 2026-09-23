@@ -27,7 +27,6 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private WifiManager.WifiLock wifiLock;
-    private final StringBuilder scanBuf = new StringBuilder();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,51 +115,6 @@ public class MainActivity extends Activity {
               | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
               | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     }
-    // Read a barcode scanner (hardware keyboard) at the native level and forward
-    // the finished code to the page. Bypasses the WebView/IME input quirks that
-    // stopped scans from arriving. Soft-keyboard typing is unaffected (it does
-    // not come through dispatchKeyEvent).
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        int kc = event.getKeyCode();
-        boolean enter = (kc == KeyEvent.KEYCODE_ENTER || kc == KeyEvent.KEYCODE_NUMPAD_ENTER);
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (event.getRepeatCount() > 0) return true;   // ignore auto-repeat
-            if (enter) {
-                String code = scanBuf.toString();
-                scanBuf.setLength(0);
-                if (code.length() > 0) { sendScanToWeb(code); return true; }
-                return super.dispatchKeyEvent(event);
-            }
-            // Use the key character map (same path the WebView uses) so digits
-            // come out correct regardless of the scanner's raw key codes.
-            char ch = 0;
-            int u = event.getUnicodeChar();
-            if (u >= 32 && u < 127) {
-                ch = (char) u;
-            } else if (kc >= KeyEvent.KEYCODE_NUMPAD_0 && kc <= KeyEvent.KEYCODE_NUMPAD_9) {
-                ch = (char) ('0' + (kc - KeyEvent.KEYCODE_NUMPAD_0));   // fallback for numpad w/o numlock
-            }
-            if (ch != 0) { scanBuf.append(ch); return true; }
-        } else if (event.getAction() == KeyEvent.ACTION_UP) {
-            int u = event.getUnicodeChar();
-            if (enter || (u >= 32 && u < 127)
-                    || (kc >= KeyEvent.KEYCODE_NUMPAD_0 && kc <= KeyEvent.KEYCODE_NUMPAD_9)) {
-                return true;
-            }
-        }
-        return super.dispatchKeyEvent(event);
-    }
-
-    private void sendScanToWeb(String code) {
-        final String safe = code.replace("\\", "\\\\").replace("'", "\\'");
-        if (web != null) web.post(new Runnable() {
-            public void run() {
-                web.evaluateJavascript("window.nativeScan && window.nativeScan('" + safe + "')", null);
-            }
-        });
-    }
-
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) { if (web != null) web.reload(); return true; }
         return super.onKeyDown(keyCode, event);
